@@ -14,18 +14,22 @@ volatile boolean secondBeat = false;      // used to seed rate array so we start
 
 void interruptSetup(){     
   // Initializes Timer2 to throw an interrupt every 2mS.
-  TCCR2A = 0x02;     // DISABLE PWM ON DIGITAL PINS 3 AND 11, AND GO INTO CTC MODE
-  TCCR2B = 0x06;     // DON'T FORCE COMPARE, 256 PRESCALER 
-  OCR2A = 0X7C;      // SET THE TOP OF THE COUNT TO 124 FOR 500Hz SAMPLE RATE
-  TIMSK2 = 0x02;     // ENABLE INTERRUPT ON MATCH BETWEEN TIMER2 AND OCR2A
-  sei();             // MAKE SURE GLOBAL INTERRUPTS ARE ENABLED      
+  TC_Configure(TC0,0,0x4 | TC_CMR_ACPC_SET | TC_CMR_WAVE
+			| TC_CMR_ACPA_CLEAR | (0x2 << 13));
+  TC_Start(TC0,0);
+  //TCCR2A = 0x02;      DISABLE PWM ON DIGITAL PINS 3 AND 11, AND GO INTO CTC MODE
+   //TCCR2B = 0x06;     DON'T FORCE COMPARE, 256 PRESCALER 
+   //OCR2A = 0X7C;      SET THE TOP OF THE COUNT TO 124 FOR 500Hz SAMPLE RATE
+  //TIMSK2 = 0x02;      ENABLE INTERRUPT ON MATCH BETWEEN TIMER2 AND OCR2A
+  //sei();              MAKE SURE GLOBAL INTERRUPTS ARE ENABLED      
 } 
 
 
 // THIS IS THE TIMER 2 INTERRUPT SERVICE ROUTINE. 
 // Timer 2 makes sure that we take a reading every 2 miliseconds
-ISR(TIMER2_COMPA_vect){                         // triggered when Timer2 counts to 124
-  cli();                                      // disable interrupts while we do this
+ISR(TIMER0_COMPA_vect){                         // triggered when Timer2 counts to 124
+  TC_Stop(TC0,0);   // disable interrupts while we do this
+   Serial.println("interrupt");
   Signal = analogRead(pulsePin);              // read the Pulse Sensor 
   sampleCounter += 2;                         // keep track of the time in mS with this variable
   int N = sampleCounter - lastBeatTime;       // monitor the time since the last beat to avoid noise
@@ -60,7 +64,7 @@ ISR(TIMER2_COMPA_vect){                         // triggered when Timer2 counts 
       if(firstBeat){                         // if it's the first time we found a beat, if firstBeat == TRUE
         firstBeat = false;                   // clear firstBeat flag
         secondBeat = true;                   // set the second beat flag
-        sei();                               // enable interrupts again
+        TC_Start(TC0,0);                                // enable interrupts again
         return;                              // IBI value is unreliable so discard it
       }   
 
@@ -100,7 +104,7 @@ ISR(TIMER2_COMPA_vect){                         // triggered when Timer2 counts 
     secondBeat = false;                    // when we get the heartbeat back
   }
 
-  sei();                                   // enable interrupts when youre done!
+ TC_Start(TC0,0);                                 // enable interrupts when youre done!
 }// end isr
 
 
